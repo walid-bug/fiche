@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>فيشي المزرعة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow column for a worker's phone. Name field, day switcher, a five-row ledger with +/- steppers, a message preview with one big send button, then past days. */
+:root {
+  --bg: #E9EEE7;
+  --surface: #F7F9F5;
+  --surface2: #EBF1E8;
+  --sel: #DCE9DF;
+  --ink: #1B2620;
+  --muted: #5C6A60;
+  --line: #CBD5C9;
+  --accent: #2E6B4A;
+  --on-accent: #FFFFFF;
+  --c-age: #1B2620;
+  --c-weight: #2E6B4A;
+  --c-feed: #8F6310;
+  --c-water: #1F6585;
+  --c-death: #B03427;
+  --f-display: "Readex Pro", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1612; --surface: #17211B; --surface2: #1D2922; --sel: #1E3326;
+    --ink: #E6EEE7; --muted: #93A298; --line: #2A3A30; --accent: #6CC596; --on-accent: #0F1612;
+    --c-age: #E6EEE7; --c-weight: #6CC596; --c-feed: #E0A94A; --c-water: #6FB8D8; --c-death: #F08272;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1612; --surface: #17211B; --surface2: #1D2922; --sel: #1E3326;
+  --ink: #E6EEE7; --muted: #93A298; --line: #2A3A30; --accent: #6CC596; --on-accent: #0F1612;
+  --c-age: #E6EEE7; --c-weight: #6CC596; --c-feed: #E0A94A; --c-water: #6FB8D8; --c-death: #F08272;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; }
+.app { max-width: 560px; margin-inline: auto; padding-inline: 16px; padding-block: 20px 40px; display: flex; flex-direction: column; gap: 20px; }
+h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 1.6rem; letter-spacing: 0; text-wrap: balance; }
+h2 { margin: 0 0 10px; font-family: var(--f-display); font-weight: 500; font-size: 1.1rem; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; }
+.sub b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+button, a.send { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, a:focus-visible, tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.who { display: flex; flex-direction: column; gap: 6px; }
+.who label { font-size: 0.9rem; color: var(--muted); }
+.who input { height: 48px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font-family: var(--f-body); font-size: 1.05rem; padding-inline: 14px; }
+
+.datebar { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.navbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 14px; font-size: 0.9rem; min-height: 44px; }
+.navbtn:disabled { opacity: 0.4; cursor: default; }
+.datecell { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.datelabel { font-family: var(--f-display); font-weight: 500; font-size: 1.05rem; }
+.todaytag { font-size: 0.78rem; color: var(--accent); font-weight: 600; min-height: 1.2em; }
+.backtoday { border: 0; background: none; font-size: 0.8rem; color: var(--accent); text-decoration: underline; padding: 0; min-height: 1.2em; }
+
+.shifts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.shiftbtn { min-height: 48px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-family: var(--f-display); font-weight: 500; font-size: 1rem; }
+.shiftbtn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 14px 16px; }
+.row + .row { border-top: 1px solid var(--line); }
+.lab { display: flex; flex-direction: column; min-width: 0; }
+.lab strong { font-family: var(--f-display); font-weight: 500; font-size: 1.05rem; }
+.lab span { color: var(--muted); font-size: 0.82rem; }
+.stepper { display: flex; align-items: center; gap: 8px; direction: ltr; }
+.stepper button { width: 46px; height: 46px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface2); font-size: 1.5rem; line-height: 1; font-family: var(--f-display); }
+.stepper button:active { background: var(--sel); }
+.stepper input { width: 5.4rem; height: 46px; text-align: center; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-family: var(--f-display); font-weight: 700; font-size: 1.35rem; font-variant-numeric: tabular-nums; padding: 0 4px; color: var(--ink); }
+.stepper input::placeholder { color: var(--muted); font-weight: 500; opacity: 0.7; }
+.c-age input { color: var(--c-age); }
+.c-weight input { color: var(--c-weight); }
+.c-feed input { color: var(--c-feed); }
+.c-water input { color: var(--c-water); }
+.c-death input { color: var(--c-death); }
+
+.sendbox { display: flex; flex-direction: column; gap: 12px; }
+.preview { margin: 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-family: var(--f-body); font-size: 0.92rem; white-space: pre-wrap; color: var(--muted); }
+a.send { display: flex; align-items: center; justify-content: center; min-height: 54px; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; text-decoration: none; padding-inline: 16px; text-align: center; }
+a.send[aria-disabled="true"] { opacity: 0.45; }
+.hint { min-height: 1.4em; margin: 0; font-size: 0.9rem; color: var(--c-death); }
+.sentchip { margin: 0; font-size: 0.88rem; color: var(--muted); }
+.sentchip[data-s="1"] { color: var(--accent); font-weight: 600; }
+
+.del { border: 1px solid var(--line); background: none; border-radius: 10px; padding: 8px 14px; font-size: 0.85rem; color: var(--muted); align-self: flex-start; }
+.del[data-armed="1"] { border-color: var(--c-death); color: var(--c-death); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 460px; }
+th { font-weight: 500; font-size: 0.8rem; color: var(--muted); padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+tr:last-child td { border-bottom: 0; }
+td.d { text-align: start; padding-inline-start: 14px; white-space: nowrap; }
+tbody tr { cursor: pointer; }
+tbody tr[aria-current="true"] { background: var(--sel); }
+td.m { color: var(--muted); }
+td.ok { color: var(--accent); font-weight: 600; }
+.empty { padding: 18px 16px; color: var(--muted); font-size: 0.95rem; }
+.note { color: var(--muted); font-size: 0.82rem; margin: 0; }
+@media (max-width: 380px) {
+  .stepper button { width: 42px; }
+  .stepper input { width: 4.6rem; }
+}
+</style>
+</head>
+<body>
+<main class="app" dir="rtl" lang="ar">
+  <div>
+    <h1>فيشي المزرعة</h1>
+    <p class="sub" id="sub"></p>
+  </div>
+
+  <div class="who">
+    <label for="name">سميتك</label>
+    <input id="name" type="text" autocomplete="name" placeholder="مثلا: يوسف">
+  </div>
+
+  <nav class="datebar" aria-label="تبديل النهار">
+    <button class="navbtn" id="prev" type="button">النهار اللي قبل</button>
+    <div class="datecell">
+      <div class="datelabel" id="dlabel"></div>
+      <div class="todaytag" id="dtag"></div>
+    </div>
+    <button class="navbtn" id="next" type="button">النهار اللي موراه</button>
+  </nav>
+
+  <div class="shifts" role="group" aria-label="الشيفت">
+    <button type="button" class="shiftbtn" data-s="m" aria-pressed="true">شيفت الصباح</button>
+    <button type="button" class="shiftbtn" data-s="n" aria-pressed="false">شيفت الليل</button>
+  </div>
+
+  <section class="sheet" id="sheet" aria-label="أرقام النهار"></section>
+
+  <section class="sendbox" aria-label="إرسال التقرير">
+    <pre class="preview" id="preview" dir="rtl"></pre>
+    <p class="hint" id="hint" role="status" aria-live="polite"></p>
+    <a class="send" id="send" href="#" target="_blank" rel="noopener">صيفط للمول المزرعة</a>
+    <p class="sentchip" id="sentchip"></p>
+  </section>
+
+  <button class="del" id="del" type="button" hidden>مسح أرقام هاد النهار</button>
+
+  <section>
+    <h2>النهارات اللي فاتو</h2>
+    <div class="tablewrap" id="hist"></div>
+  </section>
+  <p class="note" id="note">الأرقام كتبقى محفوظة فهاد التيليفون. كل نهار عمر الأرقام وضغط على "صيفط للمول المزرعة".</p>
+</main>
+
+<script>
+(function () {
+  var OWNER = '212661733316';
+  var FIELDS = [
+    { k: 'age',    label: 'العمر',  unit: 'يوم',  step: 1,    dec: 0, cls: 'c-age',    need: true },
+    { k: 'weight', label: 'الوزن',  unit: 'كغ',   step: 0.05, dec: 2, cls: 'c-weight', need: true },
+    { k: 'feed',   label: 'العلف',  unit: 'كغ',   step: 1,    dec: 1, cls: 'c-feed',   need: true },
+    { k: 'water',  label: 'الماء',  unit: 'لتر',  step: 1,    dec: 1, cls: 'c-water',  need: true },
+    { k: 'deaths', label: 'الموت',  unit: 'عدد',  step: 1,    dec: 0, cls: 'c-death',  need: false }
+  ];
+  var LS_DAYS = 'fiche-mazraa-days';
+  var LS_NAME = 'fiche-mazraa-name';
+  var LS_SHIFT = 'fiche-mazraa-shift';
+
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var toKey = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  var fromKey = function (k) { var p = k.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+  var addDays = function (k, n) { var d = fromKey(k); d.setDate(d.getDate() + n); return toKey(d); };
+  var dayDiff = function (a, b) { return Math.round((fromKey(a) - fromKey(b)) / 864e5); };
+  var todayKey = function () { return toKey(new Date()); };
+  var dmy = function (k) { var p = k.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+
+  var dfLong, dfShort;
+  try {
+    dfLong = new Intl.DateTimeFormat('ar-MA-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long' });
+    dfShort = new Intl.DateTimeFormat('ar-MA-u-nu-latn', { day: 'numeric', month: 'short' });
+  } catch (e) { dfLong = dfShort = null; }
+  var labelLong = function (k) { return dfLong ? dfLong.format(fromKey(k)) : k; };
+  var labelShort = function (k) { return dfShort ? dfShort.format(fromKey(k)) : k; };
+
+  var fmt = function (n, dec) { return Number(Number(n).toFixed(dec)).toString(); };
+  function parse(v) {
+    v = String(v).trim().replace(/[٠-٩]/g, function (c) { return c.charCodeAt(0) - 1632; }).replace(/[,،]/g, '.');
+    if (v === '') return null;
+    var n = parseFloat(v);
+    return isFinite(n) && n >= 0 ? n : undefined;
+  }
+
+  var records = {};
+  var sel = todayKey();
+  var shift = 'm';
+  var SHIFTS = { m: 'الصباح', n: 'الليل' };
+  var ck = function () { return sel + '_' + shift; };
+  try {
+    var sv = localStorage.getItem(LS_SHIFT);
+    if (sv === 'm' || sv === 'n') shift = sv;
+    else { var hh = new Date().getHours(); shift = (hh >= 5 && hh < 17) ? 'm' : 'n'; }
+  } catch (e) {}
+  function setShift(sh) {
+    shift = sh;
+    try { localStorage.setItem(LS_SHIFT, sh); } catch (e) {}
+  }
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ----- storage (per phone) -----
+  try { var raw = localStorage.getItem(LS_DAYS); if (raw) records = JSON.parse(raw) || {}; } catch (e) {}
+  Object.keys(records).forEach(function (k) { if (k.length === 10) { records[k + '_m'] = records[k]; delete records[k]; } });
+  function saveAll() {
+    try { localStorage.setItem(LS_DAYS, JSON.stringify(records)); }
+    catch (e) { $('note').textContent = 'التيليفون ما خلاناش نحفظو الأرقام. ما تسدش الصفحة قبل ما تصيفط التقرير.'; }
+  }
+  var nameEl = $('name');
+  try { nameEl.value = localStorage.getItem(LS_NAME) || ''; } catch (e) {}
+  nameEl.addEventListener('input', function () {
+    try { localStorage.setItem(LS_NAME, nameEl.value); } catch (e) {}
+    renderSend();
+  });
+
+  // ----- fields -----
+  var inputs = {};
+  var sheet = $('sheet');
+  FIELDS.forEach(function (f) {
+    var row = document.createElement('div');
+    row.className = 'row ' + f.cls;
+    row.innerHTML =
+      '<div class="lab"><strong>' + f.label + '</strong><span>' + f.unit + '</span></div>' +
+      '<div class="stepper">' +
+      '<button type="button" data-d="-1" aria-label="نقص ' + f.label + '">−</button>' +
+      '<input id="in-' + f.k + '" type="text" inputmode="decimal" autocomplete="off" aria-label="' + f.label + ' (' + f.unit + ')">' +
+      '<button type="button" data-d="1" aria-label="زيد ' + f.label + '">+</button>' +
+      '</div>';
+    sheet.appendChild(row);
+    var input = row.querySelector('input');
+    inputs[f.k] = input;
+    row.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () { bump(f, Number(b.dataset.d)); });
+    });
+    input.addEventListener('change', function () {
+      var n = parse(input.value);
+      if (n === undefined) { renderFields(true); return; }
+      setValue(f.k, n);
+    });
+    input.addEventListener('focus', function () { try { input.select(); } catch (e) {} });
+  });
+
+  function keys() { return Object.keys(records).sort(); }
+  function prevKey(date) {
+    var cur = date + '_' + shift;
+    var ks = keys().filter(function (k) { return k < cur; });
+    return ks.length ? ks[ks.length - 1] : null;
+  }
+  function suggest(k, date) {
+    var pk = prevKey(date);
+    var prev = pk ? records[pk] : null;
+    if (k === 'age') return prev && prev.age != null ? prev.age + dayDiff(date, pk.slice(0, 10)) : null;
+    if (k === 'deaths') return 0;
+    return prev && prev[k] != null ? prev[k] : null;
+  }
+  function bump(f, dir) {
+    var cur = (records[ck()] || {})[f.k];
+    var base = cur;
+    if (base == null) {
+      var s = suggest(f.k, sel);
+      base = s == null ? 0 : (f.k === 'age' ? s - 1 : s);
+    }
+    setValue(f.k, Math.max(0, Math.round((base + dir * f.step) * 1000) / 1000));
+  }
+  function hasData(rec) { return FIELDS.some(function (f) { return rec[f.k] != null; }); }
+  function setValue(k, n) {
+    var rec = Object.assign({}, records[ck()] || {});
+    if (n == null) delete rec[k]; else rec[k] = n;
+    delete rec.sent; // a changed number has to be sent again
+    if (hasData(rec)) records[ck()] = rec; else delete records[ck()];
+    saveAll();
+    render();
+  }
+
+  // ----- message -----
+  function valueOrNull(k) { var r = records[ck()] || {}; return r[k] != null ? r[k] : null; }
+  function missing() {
+    return FIELDS.filter(function (f) { return f.need && valueOrNull(f.k) == null; }).map(function (f) { return f.label; });
+  }
+  function buildText() {
+    var name = nameEl.value.trim();
+    var lines = ['تقرير المزرعة', 'الخدام: ' + (name || '—'), 'الشيفت: ' + SHIFTS[shift], 'التاريخ: ' + dmy(sel)];
+    FIELDS.forEach(function (f) {
+      var v = valueOrNull(f.k);
+      if (f.k === 'deaths' && v == null) v = 0;
+      lines.push(f.label + ': ' + (v == null ? '—' : fmt(v, f.dec)) + ' ' + f.unit);
+    });
+    return lines.join('\n');
+  }
+  var sendEl = $('send');
+  function blockReason() {
+    if (!nameEl.value.trim()) return 'كتب سميتك فوق قبل ما تصيفط.';
+    var m = missing();
+    if (m.length) return 'مازال خاصك تعمر: ' + m.join('، ') + '.';
+    return '';
+  }
+  function renderSend() {
+    var text = buildText();
+    $('preview').textContent = text;
+    sendEl.href = 'https://wa.me/' + OWNER + '?text=' + encodeURIComponent(text);
+    var why = blockReason();
+    sendEl.setAttribute('aria-disabled', why ? 'true' : 'false');
+    $('hint').textContent = '';
+    var rec = records[ck()] || {};
+    var chip = $('sentchip');
+    if (rec.sent) {
+      var t = new Date(rec.sent);
+      chip.dataset.s = '1';
+      chip.textContent = 'تصيفط هاد النهار على ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + '. إلا ما وصلش، ضغط عاود.';
+    } else {
+      chip.dataset.s = '0';
+      chip.textContent = 'هاد النهار مازال ما تصيفطش.';
+    }
+  }
+  sendEl.addEventListener('click', function (e) {
+    var why = blockReason();
+    if (why) {
+      e.preventDefault();
+      $('hint').textContent = why;
+      if (!nameEl.value.trim()) nameEl.focus();
+      return;
+    }
+    var rec = Object.assign({}, records[ck()] || {});
+    rec.sent = Date.now();
+    records[ck()] = rec;
+    saveAll();
+    setTimeout(render, 0);
+  });
+
+  // ----- rendering -----
+  function renderFields(force) {
+    var rec = records[ck()] || {};
+    FIELDS.forEach(function (f) {
+      var el = inputs[f.k];
+      if (!force && document.activeElement === el) return;
+      el.value = rec[f.k] != null ? fmt(rec[f.k], f.dec) : '';
+      var s = suggest(f.k, sel);
+      el.placeholder = s != null ? fmt(s, f.dec) : '—';
+    });
+  }
+  function renderHead() {
+    var t = todayKey();
+    $('dlabel').textContent = labelLong(sel);
+    $('dtag').textContent = sel === t ? 'اليوم' : '';
+    $('next').disabled = sel >= t;
+    var back = document.getElementById('backtoday');
+    if (sel !== t) {
+      if (!back) {
+        back = document.createElement('button');
+        back.id = 'backtoday'; back.type = 'button'; back.className = 'backtoday';
+        back.textContent = 'رجع لليوم';
+        back.addEventListener('click', function () { sel = todayKey(); render(); });
+        $('dtag').appendChild(back);
+      }
+    } else if (back) back.remove();
+
+    var rec = records[ck()] || {};
+    var age = rec.age != null ? rec.age : suggest('age', sel);
+    $('sub').innerHTML = age != null ? 'العمر <b>' + fmt(age, 0) + '</b> يوم' : 'عمر الأرقام ديال النهار وصيفطها للمول المزرعة';
+  }
+  function renderHist() {
+    var ks = keys().reverse();
+    var box = $('hist');
+    if (!ks.length) {
+      box.innerHTML = '<div class="empty">مازال ما سجلتي والو. دخل أرقام النهار فوق وغادي يبانو هنا.</div>';
+      return;
+    }
+    var html = '<table><thead><tr><th style="text-align:start;padding-inline-start:14px">النهار والشيفت</th>' +
+      FIELDS.map(function (f) { return '<th>' + f.label + '</th>'; }).join('') + '<th>تصيفط</th></tr></thead><tbody>';
+    ks.slice(0, 60).forEach(function (k) {
+      var r = records[k];
+      html += '<tr tabindex="0" data-k="' + k + '"' + (k === ck() ? ' aria-current="true"' : '') + '><td class="d">' + labelShort(k.slice(0, 10)) + ' · ' + SHIFTS[k.slice(11)] + '</td>' +
+        FIELDS.map(function (f) { return '<td class="' + (r[f.k] == null ? 'm' : '') + '">' + (r[f.k] != null ? fmt(r[f.k], f.dec) : '—') + '</td>'; }).join('') +
+        '<td class="' + (r.sent ? 'ok' : 'm') + '">' + (r.sent ? '✓' : '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }
+  function renderShift() {
+    document.querySelectorAll('.shiftbtn').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.s === shift ? 'true' : 'false');
+    });
+  }
+  function render() {
+    renderShift();
+    renderHead();
+    renderFields(false);
+    renderSend();
+    renderHist();
+    var d = $('del');
+    d.hidden = !records[ck()];
+    d.dataset.armed = '0';
+    d.textContent = 'مسح أرقام هاد النهار';
+  }
+
+  // ----- events -----
+  document.querySelectorAll('.shiftbtn').forEach(function (b) {
+    b.addEventListener('click', function () { setShift(b.dataset.s); render(); });
+  });
+  $('prev').addEventListener('click', function () { sel = addDays(sel, -1); render(); });
+  $('next').addEventListener('click', function () { if (sel < todayKey()) { sel = addDays(sel, 1); render(); } });
+  $('hist').addEventListener('click', function (e) {
+    var tr = e.target.closest && e.target.closest('tr[data-k]');
+    if (tr) { sel = tr.dataset.k.slice(0, 10); setShift(tr.dataset.k.slice(11)); render(); window.scrollTo({ top: 0 }); }
+  });
+  $('hist').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest && e.target.closest('tr[data-k]');
+    if (tr) { e.preventDefault(); sel = tr.dataset.k.slice(0, 10); setShift(tr.dataset.k.slice(11)); render(); }
+  });
+  var armTimer = null;
+  $('del').addEventListener('click', function () {
+    var d = $('del');
+    if (d.dataset.armed !== '1') {
+      d.dataset.armed = '1';
+      d.textContent = 'تأكيد المسح؟ ضغط عاود';
+      clearTimeout(armTimer);
+      armTimer = setTimeout(function () { d.dataset.armed = '0'; d.textContent = 'مسح أرقام هاد النهار'; }, 4000);
+      return;
+    }
+    delete records[ck()];
+    saveAll();
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
