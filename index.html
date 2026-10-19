@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>فيشي المزرعة</title>
+<title>سجل المزرعة</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;700&display=swap">
@@ -116,55 +116,60 @@ td.ok { color: var(--accent); font-weight: 600; }
 <body>
 <main class="app" dir="rtl" lang="ar">
   <div>
-    <h1>فيشي المزرعة</h1>
+    <h1>سجل المزرعة</h1>
     <p class="sub" id="sub"></p>
   </div>
 
   <div class="who">
-    <label for="name">سميتك</label>
-    <input id="name" type="text" autocomplete="name" placeholder="مثلا: يوسف">
+    <label for="name">اسمك</label>
+    <input id="name" type="text" autocomplete="name" placeholder="مثال: يوسف">
   </div>
 
-  <nav class="datebar" aria-label="تبديل النهار">
-    <button class="navbtn" id="prev" type="button">النهار اللي قبل</button>
+  <nav class="datebar" aria-label="تغيير اليوم">
+    <button class="navbtn" id="prev" type="button">اليوم السابق</button>
     <div class="datecell">
       <div class="datelabel" id="dlabel"></div>
       <div class="todaytag" id="dtag"></div>
     </div>
-    <button class="navbtn" id="next" type="button">النهار اللي موراه</button>
+    <button class="navbtn" id="next" type="button">اليوم التالي</button>
   </nav>
 
-  <div class="shifts" role="group" aria-label="الشيفت">
-    <button type="button" class="shiftbtn" data-s="m" aria-pressed="true">شيفت الصباح</button>
-    <button type="button" class="shiftbtn" data-s="n" aria-pressed="false">شيفت الليل</button>
+  <div class="shifts" role="group" aria-label="الوردية">
+    <button type="button" class="shiftbtn" data-s="m" aria-pressed="true">الوردية الصباحية</button>
+    <button type="button" class="shiftbtn" data-s="n" aria-pressed="false">الوردية الليلية</button>
   </div>
 
-  <section class="sheet" id="sheet" aria-label="أرقام النهار"></section>
+  <section class="sheet" id="sheet" aria-label="أرقام اليوم"></section>
 
   <section class="sendbox" aria-label="إرسال التقرير">
     <pre class="preview" id="preview" dir="rtl"></pre>
     <p class="hint" id="hint" role="status" aria-live="polite"></p>
-    <a class="send" id="send" href="#" target="_blank" rel="noopener">صيفط للمول المزرعة</a>
+    <a class="send" id="send" href="#" target="_blank" rel="noopener">إرسال إلى صاحب المزرعة</a>
     <p class="sentchip" id="sentchip"></p>
   </section>
 
-  <button class="del" id="del" type="button" hidden>مسح أرقام هاد النهار</button>
+  <button class="del" id="del" type="button" hidden>حذف أرقام هذا اليوم</button>
 
   <section>
-    <h2>النهارات اللي فاتو</h2>
+    <h2>الأيام السابقة</h2>
     <div class="tablewrap" id="hist"></div>
   </section>
-  <p class="note" id="note">الأرقام كتبقى محفوظة فهاد التيليفون. كل نهار عمر الأرقام وضغط على "صيفط للمول المزرعة".</p>
+  <p class="note" id="note">الأرقام محفوظة على هذا الهاتف. أدخل أرقام كل يوم ثم اضغط «إرسال إلى صاحب المزرعة».</p>
 </main>
 
 <script>
 (function () {
   var OWNER = '212661733316';
+  var SHEET_URL = '';                 // Apps Script web app URL (ends with /exec). Empty = no sheet logging.
+  var SHEET_SECRET = 'LSFg55Y-FNYcPF6N';
+  var LS_PENDING = 'fiche-mazraa-pending';
+  var pending = {};
+  try { pending = JSON.parse(localStorage.getItem(LS_PENDING) || '{}') || {}; } catch (e) {}
   var FIELDS = [
     { k: 'age',    label: 'العمر',  unit: 'يوم',  step: 1,    dec: 0, cls: 'c-age',    need: true },
-    { k: 'weight', label: 'الوزن',  unit: 'كغ',   step: 0.05, dec: 2, cls: 'c-weight', need: true },
-    { k: 'feed',   label: 'العلف',  unit: 'كغ',   step: 1,    dec: 1, cls: 'c-feed',   need: true },
-    { k: 'water',  label: 'الماء',  unit: 'لتر',  step: 1,    dec: 1, cls: 'c-water',  need: true },
+    { k: 'weight', label: 'متوسط الوزن', unit: 'كغ للطائر الواحد', mu: 'كغ للطائر',   step: 0.05, dec: 2, cls: 'c-weight', need: true },
+    { k: 'feed',   label: 'العلف', unit: 'كغ (مجموع اليوم)', mu: 'كغ',   step: 1,    dec: 1, cls: 'c-feed',   need: true },
+    { k: 'water',  label: 'الماء', unit: 'لتر (مجموع اليوم)', mu: 'لتر',  step: 1,    dec: 1, cls: 'c-water',  need: true },
     { k: 'deaths', label: 'الموت',  unit: 'عدد',  step: 1,    dec: 0, cls: 'c-death',  need: false }
   ];
   var LS_DAYS = 'fiche-mazraa-days';
@@ -216,7 +221,7 @@ td.ok { color: var(--accent); font-weight: 600; }
   Object.keys(records).forEach(function (k) { if (k.length === 10) { records[k + '_m'] = records[k]; delete records[k]; } });
   function saveAll() {
     try { localStorage.setItem(LS_DAYS, JSON.stringify(records)); }
-    catch (e) { $('note').textContent = 'التيليفون ما خلاناش نحفظو الأرقام. ما تسدش الصفحة قبل ما تصيفط التقرير.'; }
+    catch (e) { $('note').textContent = 'تعذّر حفظ الأرقام على هذا الهاتف. لا تغلق الصفحة قبل إرسال التقرير.'; }
   }
   var nameEl = $('name');
   try { nameEl.value = localStorage.getItem(LS_NAME) || ''; } catch (e) {}
@@ -234,9 +239,9 @@ td.ok { color: var(--accent); font-weight: 600; }
     row.innerHTML =
       '<div class="lab"><strong>' + f.label + '</strong><span>' + f.unit + '</span></div>' +
       '<div class="stepper">' +
-      '<button type="button" data-d="-1" aria-label="نقص ' + f.label + '">−</button>' +
+      '<button type="button" data-d="-1" aria-label="إنقاص ' + f.label + '">−</button>' +
       '<input id="in-' + f.k + '" type="text" inputmode="decimal" autocomplete="off" aria-label="' + f.label + ' (' + f.unit + ')">' +
-      '<button type="button" data-d="1" aria-label="زيد ' + f.label + '">+</button>' +
+      '<button type="button" data-d="1" aria-label="زيادة ' + f.label + '">+</button>' +
       '</div>';
     sheet.appendChild(row);
     var input = row.querySelector('input');
@@ -279,6 +284,7 @@ td.ok { color: var(--accent); font-weight: 600; }
     var rec = Object.assign({}, records[ck()] || {});
     if (n == null) delete rec[k]; else rec[k] = n;
     delete rec.sent; // a changed number has to be sent again
+    delete rec.sheet;
     if (hasData(rec)) records[ck()] = rec; else delete records[ck()];
     saveAll();
     render();
@@ -291,19 +297,19 @@ td.ok { color: var(--accent); font-weight: 600; }
   }
   function buildText() {
     var name = nameEl.value.trim();
-    var lines = ['تقرير المزرعة', 'الخدام: ' + (name || '—'), 'الشيفت: ' + SHIFTS[shift], 'التاريخ: ' + dmy(sel)];
+    var lines = ['تقرير المزرعة', 'العامل: ' + (name || '—'), 'الوردية: ' + SHIFTS[shift], 'التاريخ: ' + dmy(sel)];
     FIELDS.forEach(function (f) {
       var v = valueOrNull(f.k);
       if (f.k === 'deaths' && v == null) v = 0;
-      lines.push(f.label + ': ' + (v == null ? '—' : fmt(v, f.dec)) + ' ' + f.unit);
+      lines.push(f.label + ': ' + (v == null ? '—' : fmt(v, f.dec)) + ' ' + (f.mu || f.unit));
     });
     return lines.join('\n');
   }
   var sendEl = $('send');
   function blockReason() {
-    if (!nameEl.value.trim()) return 'كتب سميتك فوق قبل ما تصيفط.';
+    if (!nameEl.value.trim()) return 'اكتب اسمك في الأعلى قبل الإرسال.';
     var m = missing();
-    if (m.length) return 'مازال خاصك تعمر: ' + m.join('، ') + '.';
+    if (m.length) return 'يجب إكمال: ' + m.join('، ') + '.';
     return '';
   }
   function renderSend() {
@@ -318,10 +324,11 @@ td.ok { color: var(--accent); font-weight: 600; }
     if (rec.sent) {
       var t = new Date(rec.sent);
       chip.dataset.s = '1';
-      chip.textContent = 'تصيفط هاد النهار على ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + '. إلا ما وصلش، ضغط عاود.';
+      chip.textContent = 'أُرسل تقرير هذا اليوم في الساعة ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + '. إن لم يصل، اضغط مرة أخرى.';
+      if (SHEET_URL) chip.textContent += rec.sheet ? ' وتم تسجيله في الجدول ✓.' : ' لم يتأكد التسجيل في الجدول بعد. ستُعاد المحاولة عند فتح الصفحة مع توفر الإنترنت.';
     } else {
       chip.dataset.s = '0';
-      chip.textContent = 'هاد النهار مازال ما تصيفطش.';
+      chip.textContent = 'لم يُرسل تقرير هذا اليوم بعد.';
     }
   }
   sendEl.addEventListener('click', function (e) {
@@ -334,8 +341,15 @@ td.ok { color: var(--accent); font-weight: 600; }
     }
     var rec = Object.assign({}, records[ck()] || {});
     rec.sent = Date.now();
+    delete rec.sheet;
     records[ck()] = rec;
     saveAll();
+    if (SHEET_URL) {
+      var key = ck();
+      pending[key] = payloadFor(sel, shift, rec, nameEl.value.trim(), rec.sent);
+      savePending();
+      postRow(key);
+    }
     setTimeout(render, 0);
   });
 
@@ -360,7 +374,7 @@ td.ok { color: var(--accent); font-weight: 600; }
       if (!back) {
         back = document.createElement('button');
         back.id = 'backtoday'; back.type = 'button'; back.className = 'backtoday';
-        back.textContent = 'رجع لليوم';
+        back.textContent = 'العودة إلى اليوم';
         back.addEventListener('click', function () { sel = todayKey(); render(); });
         $('dtag').appendChild(back);
       }
@@ -368,17 +382,17 @@ td.ok { color: var(--accent); font-weight: 600; }
 
     var rec = records[ck()] || {};
     var age = rec.age != null ? rec.age : suggest('age', sel);
-    $('sub').innerHTML = age != null ? 'العمر <b>' + fmt(age, 0) + '</b> يوم' : 'عمر الأرقام ديال النهار وصيفطها للمول المزرعة';
+    $('sub').innerHTML = age != null ? 'العمر <b>' + fmt(age, 0) + '</b> يوم' : 'أدخل أرقام اليوم وأرسلها إلى صاحب المزرعة';
   }
   function renderHist() {
     var ks = keys().reverse();
     var box = $('hist');
     if (!ks.length) {
-      box.innerHTML = '<div class="empty">مازال ما سجلتي والو. دخل أرقام النهار فوق وغادي يبانو هنا.</div>';
+      box.innerHTML = '<div class="empty">لم تسجّل شيئًا بعد. أدخل أرقام اليوم أعلاه وستظهر هنا.</div>';
       return;
     }
-    var html = '<table><thead><tr><th style="text-align:start;padding-inline-start:14px">النهار والشيفت</th>' +
-      FIELDS.map(function (f) { return '<th>' + f.label + '</th>'; }).join('') + '<th>تصيفط</th></tr></thead><tbody>';
+    var html = '<table><thead><tr><th style="text-align:start;padding-inline-start:14px">اليوم والوردية</th>' +
+      FIELDS.map(function (f) { return '<th>' + f.label + '</th>'; }).join('') + '<th>أُرسل</th></tr></thead><tbody>';
     ks.slice(0, 60).forEach(function (k) {
       var r = records[k];
       html += '<tr tabindex="0" data-k="' + k + '"' + (k === ck() ? ' aria-current="true"' : '') + '><td class="d">' + labelShort(k.slice(0, 10)) + ' · ' + SHIFTS[k.slice(11)] + '</td>' +
@@ -402,7 +416,7 @@ td.ok { color: var(--accent); font-weight: 600; }
     var d = $('del');
     d.hidden = !records[ck()];
     d.dataset.armed = '0';
-    d.textContent = 'مسح أرقام هاد النهار';
+    d.textContent = 'حذف أرقام هذا اليوم';
   }
 
   // ----- events -----
@@ -425,9 +439,9 @@ td.ok { color: var(--accent); font-weight: 600; }
     var d = $('del');
     if (d.dataset.armed !== '1') {
       d.dataset.armed = '1';
-      d.textContent = 'تأكيد المسح؟ ضغط عاود';
+      d.textContent = 'تأكيد الحذف؟ اضغط مرة أخرى';
       clearTimeout(armTimer);
-      armTimer = setTimeout(function () { d.dataset.armed = '0'; d.textContent = 'مسح أرقام هاد النهار'; }, 4000);
+      armTimer = setTimeout(function () { d.dataset.armed = '0'; d.textContent = 'حذف أرقام هذا اليوم'; }, 4000);
       return;
     }
     delete records[ck()];
@@ -435,7 +449,37 @@ td.ok { color: var(--accent); font-weight: 600; }
     render();
   });
 
+  // ----- Google Sheet log (Apps Script web app) -----
+  // The report is also added as a row in the owner's Google Sheet.
+  // Same date + shift + worker updates the same row, so a resend never duplicates.
+  function payloadFor(dateKey, sh, rec, name, sentAt) {
+    return {
+      secret: SHEET_SECRET, date: dateKey, shift: SHIFTS[sh], worker: name,
+      age: rec.age, weight: rec.weight, feed: rec.feed, water: rec.water,
+      deaths: rec.deaths == null ? 0 : rec.deaths,
+      sentAt: new Date(sentAt).toISOString()
+    };
+  }
+  function savePending() { try { localStorage.setItem(LS_PENDING, JSON.stringify(pending)); } catch (e) {} }
+  function postRow(key) {
+    var p = pending[key];
+    if (!SHEET_URL || !p) return Promise.resolve();
+    return fetch(SHEET_URL, { method: 'POST', body: JSON.stringify(p), keepalive: true })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error('rejected');
+        delete pending[key];
+        savePending();
+        if (records[key]) { records[key].sheet = true; saveAll(); }
+        render();
+      })
+      .catch(function () { render(); });
+  }
+  function flushPending() { Object.keys(pending).forEach(postRow); }
+  window.addEventListener('online', flushPending);
+
   render();
+  flushPending();
 })();
 </script>
 
